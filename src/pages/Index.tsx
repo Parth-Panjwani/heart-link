@@ -1,23 +1,41 @@
 import TimeWeatherCard from "@/components/TimeWeatherCard";
 import DistanceMap from "@/components/DistanceMap";
 import DaysApartTracker from "@/components/DaysApartTracker";
-import CountdownCard from "@/components/CountdownCard";
+import EmotionalQuote from "@/components/EmotionalQuote";
 import TimeConverter from "@/components/TimeConverter";
-import { Heart, Plus } from "lucide-react";
+import { Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import CountdownCard from "@/components/CountdownCard";
+import { useEffect, useState } from "react";
+
+interface Countdown {
+  id: string;
+  emoji: string;
+  title: string;
+  targetDate: Date;
+}
 
 const Index = () => {
-  // Sample countdown events
-  const countdowns = [
-    { emoji: "✈️", title: "Next Visit Home", targetDate: new Date("2025-06-15") },
-    { emoji: "🎓", title: "Graduation Day", targetDate: new Date("2025-12-20") },
-    { emoji: "🎂", title: "Mom's Birthday", targetDate: new Date("2025-03-10") },
-  ];
+  const [countdowns, setCountdowns] = useState<Countdown[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("countdowns");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const countdownsData = parsed.map((c: any) => ({
+        ...c,
+        targetDate: new Date(c.targetDate),
+      }));
+      // Show only first 3 on home page
+      setCountdowns(countdownsData.slice(0, 3));
+    }
+  }, []);
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-24">
       {/* Header */}
-      <header className="px-4 py-6 text-center">
+      <header className="px-4 pt-6 pb-4 text-center">
         <div className="flex items-center justify-center gap-2 mb-2">
           <Heart className="w-6 h-6 text-primary animate-breathe" />
           <h1 className="text-2xl font-bold text-foreground">Connected Hearts</h1>
@@ -25,14 +43,19 @@ const Index = () => {
         <p className="text-sm text-muted-foreground">Staying close across the distance</p>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 space-y-8">
+      <div className="max-w-2xl mx-auto px-4 space-y-6">
+        {/* Emotional Quote at Top */}
+        <EmotionalQuote />
+
         {/* Time & Weather Cards */}
         <section className="space-y-4">
-          <TimeWeatherCard city="Gujarat, India" timezone="Asia/Kolkata" />
-          <TimeWeatherCard city="Krasnoyarsk, Russia" timezone="Asia/Krasnoyarsk" isRemote />
-          <p className="text-center text-sm text-muted-foreground italic px-4">
-            Even far apart, our moments stay connected.
-          </p>
+          <TimeWeatherCard city="Ahmedabad" timezone="Asia/Kolkata" countryCode="IN" />
+          <TimeWeatherCard
+            city="Krasnoyarsk"
+            timezone="Asia/Krasnoyarsk"
+            countryCode="RU"
+            isRemote
+          />
         </section>
 
         {/* Time Converter */}
@@ -51,28 +74,29 @@ const Index = () => {
           <DaysApartTracker />
         </section>
 
-        {/* Countdowns */}
-        <section>
-          <div className="flex items-center justify-between mb-4 px-2">
-            <h2 className="text-lg font-semibold text-foreground">Upcoming Events</h2>
-            <Button
-              size="sm"
-              className="rounded-full h-8 w-8 p-0 shadow-soft hover:shadow-glow"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="grid gap-4">
-            {countdowns.map((countdown, idx) => (
-              <CountdownCard
-                key={idx}
-                emoji={countdown.emoji}
-                title={countdown.title}
-                targetDate={countdown.targetDate}
-              />
-            ))}
-          </div>
-        </section>
+        {/* Countdowns Preview */}
+        {countdowns.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground">Upcoming Events</h2>
+              <Link to="/countdowns">
+                <Button variant="ghost" size="sm" className="text-primary">
+                  View All →
+                </Button>
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {countdowns.map((countdown) => (
+                <CountdownCard
+                  key={countdown.id}
+                  emoji={countdown.emoji}
+                  title={countdown.title}
+                  targetDate={countdown.targetDate}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Footer */}
         <footer className="text-center py-8">
