@@ -1,0 +1,32 @@
+{
+  "name": "Connected Hearts - Distance Relationship Tracker",
+  "short_name": "Connected Hearts",
+  "description": "Stay connected with loved ones across time zones and distance",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F9F5F2",
+  "theme_color": "#FA9A85",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "utilities", "social"],
+  "screenshots": [
+    {
+      "src": "/screenshot.png",
+      "sizes": "540x720",
+      "type": "image/png"
+    }
+  ]
+}
