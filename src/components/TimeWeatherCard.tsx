@@ -1,15 +1,18 @@
 import { Cloud, CloudRain, CloudSnow, Sun, Moon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useWeather } from "@/hooks/useWeather";
 
 interface TimeWeatherCardProps {
   city: string;
   timezone: string;
+  countryCode: string;
   isRemote?: boolean;
 }
 
-const TimeWeatherCard = ({ city, timezone, isRemote = false }: TimeWeatherCardProps) => {
+const TimeWeatherCard = ({ city, timezone, countryCode, isRemote = false }: TimeWeatherCardProps) => {
   const [time, setTime] = useState(new Date());
-  const [weather, setWeather] = useState({ temp: 22, condition: "clear" });
+  const apiKey = localStorage.getItem("weatherApiKey");
+  const { weather } = useWeather(city, countryCode, apiKey);
 
   useEffect(() => {
     const timer = setInterval(() => {

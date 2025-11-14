@@ -150,6 +150,10 @@ All colors MUST be HSL.
   .gradient-calm {
     background: var(--gradient-calm);
   }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 @keyframes breathe {
