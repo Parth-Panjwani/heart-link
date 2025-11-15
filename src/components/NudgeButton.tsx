@@ -1,11 +1,12 @@
-import { Heart, Sparkles, Users, Lock } from "lucide-react";
-import { useState } from "react";
+import { Heart, Sparkles, Users, Lock, UserPlus, Send } from "lucide-react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { nudgesApi } from "@/lib/api";
+import { nudgesApi, usersApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -13,51 +14,63 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const NudgeButton = () => {
-  const { user, partner, createSpace, joinSpaceForUser } = useAuth();
+  const { user, createSpace, joinSpaceForUser } = useAuth();
   const [isNudging, setIsNudging] = useState(false);
+  const [showNudgeModal, setShowNudgeModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showSpaceModal, setShowSpaceModal] = useState(false);
   const [spaceAction, setSpaceAction] = useState<"create" | "join">("create");
   const [spaceName, setSpaceName] = useState("");
   const [spaceCode, setSpaceCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [nudgeType, setNudgeType] = useState<"all" | "specific">("all");
+  const [selectedRecipient, setSelectedRecipient] = useState<string>("");
+  const [nudgeMessage, setNudgeMessage] = useState("");
+  const [spaceMembers, setSpaceMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
-  // Get all users
-  const getAllUsers = () => {
-    const stored = localStorage.getItem("heartLink_users");
-    return stored ? JSON.parse(stored) : [];
-  };
+  // Cute default messages
+  const defaultMessages = [
+    "💝 Thinking of you!",
+    "💕 Sending you love!",
+    "✨ You're on my mind!",
+    "💖 Missing you!",
+    "💗 Sending hugs!",
+    "💓 You're amazing!",
+    "💞 Just wanted to say hi!",
+    "💘 Sending positive vibes!",
+  ];
 
-  // Get recipient ID - if Nidhi, send to partner or first other user; otherwise send to Nidhi
-  const getRecipientId = () => {
-    if (!user) return null;
-
-    if (user.email === "nidhi@test.com") {
-      // Nidhi sends to partner or first other user
-      if (partner) {
-        return partner.id;
-      }
-      const allUsers = getAllUsers();
-      const otherUser = allUsers.find((u: any) => u.email !== "nidhi@test.com");
-      return otherUser?.id || null;
-    } else {
-      // Other users send to Nidhi
-      const allUsers = getAllUsers();
-      const nidhi = allUsers.find((u: any) => u.email === "nidhi@test.com");
-      return nidhi?.id || null;
+  // Load space members when modal opens
+  useEffect(() => {
+    if (showNudgeModal && user?.spaceId) {
+      loadSpaceMembers();
     }
-  };
+  }, [showNudgeModal, user?.spaceId]);
 
-  // Get recipient name for toast message
-  const getRecipientName = () => {
-    if (!user) return "";
-
-    if (user.email === "nidhi@test.com") {
-      return partner?.name || "your loved one";
-    } else {
-      return "Nidhi";
+  const loadSpaceMembers = async () => {
+    if (!user?.id) return;
+    setLoadingMembers(true);
+    try {
+      const result = await usersApi.getAll(user.id);
+      if (result.success && result.data) {
+        // Filter out current user
+        const members = result.data.filter((u: any) => u.id !== user.id);
+        setSpaceMembers(members);
+      }
+    } catch (error) {
+      console.error("Failed to load space members:", error);
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -73,42 +86,67 @@ const NudgeButton = () => {
       return;
     }
 
-    // Otherwise, send nudge
-    sendNudge();
+    // Otherwise, show nudge modal
+    setShowNudgeModal(true);
+    // Set random default message
+    setNudgeMessage(
+      defaultMessages[Math.floor(Math.random() * defaultMessages.length)]
+    );
   };
 
-  const sendNudge = async () => {
-    if (!user) {
-      toast.error("Please log in to send nudges");
-      return;
-    }
+  const sendNudgeToAll = async () => {
+    if (!user) return;
 
-    const recipientId = getRecipientId();
-    if (!recipientId) {
-      toast.error("Recipient not found");
-      return;
-    }
+    setIsNudging(true);
+    try {
+      const result = await nudgesApi.createToAll(
+        user.id,
+        user.name,
+        nudgeMessage.trim() || defaultMessages[0]
+      );
 
-    // Don't allow nudging yourself
-    if (recipientId === user.id) {
-      toast.error("You cannot nudge yourself!");
+      if (result.success && result.data) {
+        toast.success(`💝 Nudged ${result.data.count} member${result.data.count > 1 ? "s" : ""}!`, {
+          description: "They'll see your nudge soon",
+        });
+        setShowNudgeModal(false);
+        setNudgeMessage("");
+        setNudgeType("all");
+        setSelectedRecipient("");
+      } else {
+        toast.error("Failed to send nudge");
+      }
+    } catch (error) {
+      toast.error("Failed to send nudge");
+    } finally {
+      setIsNudging(false);
+    }
+  };
+
+  const sendNudgeToSpecific = async () => {
+    if (!user || !selectedRecipient) {
+      toast.error("Please select a recipient");
       return;
     }
 
     setIsNudging(true);
-
     try {
       const result = await nudgesApi.create({
         senderId: user.id,
         senderName: user.name,
-        recipientId: recipientId,
+        recipientId: selectedRecipient,
+        message: nudgeMessage.trim() || defaultMessages[0],
       });
 
       if (result.success) {
-        const recipientName = getRecipientName();
-        toast.success(`💝 Nudged ${recipientName}!`, {
+        const recipient = spaceMembers.find((m) => m.id === selectedRecipient);
+        toast.success(`💝 Nudged ${recipient?.name || "member"}!`, {
           description: "They'll see your nudge soon",
         });
+        setShowNudgeModal(false);
+        setNudgeMessage("");
+        setNudgeType("all");
+        setSelectedRecipient("");
       } else {
         toast.error("Failed to send nudge");
       }
@@ -167,18 +205,14 @@ const NudgeButton = () => {
     return null;
   }
 
-  const recipientName = getRecipientName();
-  const buttonTitle =
-    user.email === "nidhi@test.com" ? `Nudge ${recipientName}` : "Nudge Nidhi";
-
   return (
     <>
       <Button
         onClick={handleNudgeClick}
         disabled={isNudging}
         className="rounded-full h-14 w-14 p-0 bg-primary hover:bg-primary hover:shadow-2xl hover:scale-110 text-primary-foreground shadow-lg transition-all animate-breathe disabled:hover:scale-100 disabled:hover:shadow-lg"
-        title={buttonTitle}
-        aria-label={buttonTitle}
+        title="Send a nudge"
+        aria-label="Send a nudge"
       >
         <Heart
           className="w-6 h-6"
@@ -187,6 +221,148 @@ const NudgeButton = () => {
           strokeWidth={0.5}
         />
       </Button>
+
+      {/* Nudge Modal - Main modal for sending nudges */}
+      <Dialog open={showNudgeModal} onOpenChange={setShowNudgeModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <Heart className="w-8 h-8 text-primary" fill="currentColor" />
+              </div>
+            </div>
+            <DialogTitle className="text-2xl font-bold text-center">
+              Send a Nudge 💝
+            </DialogTitle>
+            <DialogDescription className="text-center mt-2">
+              Let your loved ones know you're thinking of them
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-4">
+            {/* Nudge Type Selection */}
+            <div className="flex gap-2 p-1 bg-muted/50 rounded-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  setNudgeType("all");
+                  setSelectedRecipient("");
+                }}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all ${
+                  nudgeType === "all"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Everyone
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNudgeType("specific")}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all ${
+                  nudgeType === "specific"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Someone Specific
+                </div>
+              </button>
+            </div>
+
+            {/* Recipient Selection - Only show if "specific" */}
+            {nudgeType === "specific" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Select Recipient</Label>
+                {loadingMembers ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="w-5 h-5 border-2 border-primary/20 border-t-primary/60 rounded-full animate-spin"></div>
+                    <span className="ml-2 text-sm text-muted-foreground">Loading members...</span>
+                  </div>
+                ) : spaceMembers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No other members in your space
+                  </p>
+                ) : (
+                  <Select value={selectedRecipient} onValueChange={setSelectedRecipient}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a member..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {spaceMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-sm">
+                              {member.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span>{member.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+
+            {/* Message Input */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">
+                Your Message{" "}
+                <span className="text-muted-foreground font-normal text-xs">
+                  (Optional)
+                </span>
+              </Label>
+              <Textarea
+                placeholder="💝 Thinking of you!"
+                value={nudgeMessage}
+                onChange={(e) => setNudgeMessage(e.target.value)}
+                className="min-h-[80px] resize-none"
+                maxLength={100}
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                {defaultMessages.slice(0, 4).map((msg, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setNudgeMessage(msg)}
+                    className="text-xs px-2 py-1 rounded-md bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {msg}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Send Button */}
+            <Button
+              onClick={nudgeType === "all" ? sendNudgeToAll : sendNudgeToSpecific}
+              className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 h-10"
+              disabled={
+                isNudging ||
+                (nudgeType === "specific" && !selectedRecipient) ||
+                loadingMembers
+              }
+            >
+              {isNudging ? (
+                "Sending..."
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  {nudgeType === "all"
+                    ? `Send to All (${spaceMembers.length} member${spaceMembers.length !== 1 ? "s" : ""})`
+                    : "Send Nudge"}
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Info Modal - Explains nudges and prompts to create/join space */}
       <Dialog open={showInfoModal} onOpenChange={setShowInfoModal}>

@@ -190,6 +190,7 @@ export interface Nudge {
   senderId: string;
   senderName: string;
   recipientId: string;
+  message?: string;
   seen: boolean;
   seenAt?: string;
   createdAt: string;
@@ -210,6 +211,14 @@ export const nudgesApi = {
       method: "POST",
       body: JSON.stringify(nudge),
     }),
+  createToAll: (senderId: string, senderName: string, message?: string) =>
+    apiRequest<{ success: boolean; nudges: Nudge[]; count: number }>(
+      "/nudges/all",
+      {
+        method: "POST",
+        body: JSON.stringify({ senderId, senderName, message }),
+      }
+    ),
   markAsSeen: (id: string) =>
     apiRequest<Nudge>(`/nudges/${id}/seen`, {
       method: "PUT",

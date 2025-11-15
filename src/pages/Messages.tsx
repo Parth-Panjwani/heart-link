@@ -430,6 +430,11 @@ const Messages = () => {
                           <span className="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
                         )}
                       </div>
+                      {nudge.message && (
+                        <p className="text-sm text-foreground mb-1 font-medium">
+                          {nudge.message}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {isToday
                           ? `Today at ${nudgeDate.toLocaleTimeString("en-US", {

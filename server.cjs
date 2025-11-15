@@ -114,6 +114,7 @@ const nudgeSchema = new mongoose.Schema({
   senderId: { type: String, required: true },
   senderName: { type: String, required: true },
   recipientId: { type: String, required: true },
+  message: { type: String, default: "💝 Thinking of you!" },
   seen: { type: Boolean, default: false },
   seenAt: { type: Date },
 }, { timestamps: true });
@@ -673,6 +674,7 @@ app.get('/api/nudges', async (req, res) => {
       senderId: n.senderId,
       senderName: n.senderName,
       recipientId: n.recipientId,
+      message: n.message || "💝 Thinking of you!",
       seen: n.seen,
       seenAt: n.seenAt ? n.seenAt.toISOString() : null,
       createdAt: n.createdAt.toISOString(),
@@ -684,16 +686,19 @@ app.get('/api/nudges', async (req, res) => {
 
 app.post('/api/nudges', async (req, res) => {
   try {
-    const { senderId, senderName, recipientId } = req.body;
+    const { senderId, senderName, recipientId, message } = req.body;
 
     if (!senderId || !senderName || !recipientId) {
       return res.status(400).json({ error: 'senderId, senderName, and recipientId are required' });
     }
 
+    const nudgeMessage = message || "💝 Thinking of you!";
+
     const nudge = new Nudge({
       senderId,
       senderName,
       recipientId,
+      message: nudgeMessage,
     });
 
     await nudge.save();
@@ -705,7 +710,7 @@ app.post('/api/nudges', async (req, res) => {
         await sendFCMNotification(
           token,
           `💓 Nudge from ${senderName}`,
-          `${senderName} is thinking of you!`,
+          nudgeMessage,
           { type: 'nudge', senderId, nudgeId: nudge._id.toString() }
         );
       }
@@ -716,9 +721,82 @@ app.post('/api/nudges', async (req, res) => {
       senderId: nudge.senderId,
       senderName: nudge.senderName,
       recipientId: nudge.recipientId,
+      message: nudge.message,
       seen: nudge.seen,
       seenAt: nudge.seenAt ? nudge.seenAt.toISOString() : null,
       createdAt: nudge.createdAt.toISOString(),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Send nudge to all space members
+app.post('/api/nudges/all', async (req, res) => {
+  try {
+    const { senderId, senderName, message } = req.body;
+
+    if (!senderId || !senderName) {
+      return res.status(400).json({ error: 'senderId and senderName are required' });
+    }
+
+    // Get sender's space
+    const sender = await User.findOne({ userId: senderId });
+    if (!sender || !sender.spaceId) {
+      return res.status(400).json({ error: 'User must be in a space to nudge all members' });
+    }
+
+    // Get all users in the same space (excluding sender)
+    const spaceMembers = await User.find({
+      spaceId: sender.spaceId,
+      userId: { $ne: senderId }
+    });
+
+    if (spaceMembers.length === 0) {
+      return res.status(400).json({ error: 'No other members in your space' });
+    }
+
+    const nudgeMessage = message || "💝 Thinking of you!";
+    const createdNudges = [];
+
+    // Create nudge for each member
+    for (const member of spaceMembers) {
+      const nudge = new Nudge({
+        senderId,
+        senderName,
+        recipientId: member.userId,
+        message: nudgeMessage,
+      });
+
+      await nudge.save();
+      createdNudges.push({
+        id: nudge._id.toString(),
+        senderId: nudge.senderId,
+        senderName: nudge.senderName,
+        recipientId: nudge.recipientId,
+        message: nudge.message,
+        seen: nudge.seen,
+        seenAt: nudge.seenAt ? nudge.seenAt.toISOString() : null,
+        createdAt: nudge.createdAt.toISOString(),
+      });
+
+      // Send FCM notification to each member
+      if (member.fcmTokens && member.fcmTokens.length > 0) {
+        for (const token of member.fcmTokens) {
+          await sendFCMNotification(
+            token,
+            `💓 Nudge from ${senderName}`,
+            nudgeMessage,
+            { type: 'nudge', senderId, nudgeId: nudge._id.toString() }
+          );
+        }
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      nudges: createdNudges,
+      count: createdNudges.length,
     });
   } catch (error) {
     res.status(400).json({ error: error.message });
