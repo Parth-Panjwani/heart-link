@@ -1,7 +1,10 @@
 // API utility functions for MongoDB backend
 
+// For Vercel deployment, use relative path if VITE_API_URL is not set
+// This allows the frontend to use the same domain for API calls
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== "undefined" ? "/api" : "http://localhost:3001/api");
 
 interface ApiResponse<T> {
   success: boolean;

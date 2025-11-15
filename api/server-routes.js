@@ -1387,15 +1387,7 @@ app.get('/api/quotes', async (req, res) => {
   }
 });
 
-// Export app for Vercel serverless functions
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = app;
-}
-
-// Only listen if running directly (not imported)
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
+});
