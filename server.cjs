@@ -827,26 +827,36 @@ app.post('/api/users/login', async (req, res) => {
 // Create new user (signup) - WITHOUT creating space
 app.post('/api/users/signup', async (req, res) => {
   try {
+    // Log incoming request for debugging
+    console.log('📝 Signup request received:', {
+      body: req.body,
+      contentType: req.headers['content-type']
+    });
+
     const { name, email, phone, pin } = req.body;
 
     if (!name || !email || !phone || !pin) {
+      console.error('❌ Missing required fields:', { name: !!name, email: !!email, phone: !!phone, pin: !!pin });
       return res.status(400).json({ error: 'Name, email, phone, and PIN are required' });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      console.error('❌ Invalid email format:', email);
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
     // Validate PIN format
     if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+      console.error('❌ Invalid PIN format:', { pin, length: pin.length, isNumeric: /^\d{4}$/.test(pin) });
       return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
     }
 
     // Check if email already exists
     const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
+      console.error('❌ Email already registered:', email.toLowerCase().trim());
       return res.status(400).json({ error: 'Email already registered' });
     }
 
@@ -867,6 +877,8 @@ app.post('/api/users/signup', async (req, res) => {
     });
 
     await user.save();
+
+    console.log('✅ User created successfully:', { userId: user.userId, email: user.email });
 
     res.status(201).json({
       success: true,
@@ -890,6 +902,9 @@ app.post('/api/users/signup', async (req, res) => {
       token: user.userId,
     });
   } catch (error) {
+    console.error('❌ Signup error:', error.message);
+    console.error('❌ Error details:', { code: error.code, name: error.name });
+
     if (error.code === 11000) {
       // Duplicate key error - only check for email, ignore PIN
       if (error.keyPattern?.email) {
