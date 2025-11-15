@@ -42,8 +42,7 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-        // Exclude Firebase messaging service worker from VitePWA handling
-        exclude: [/firebase-messaging-sw\.js$/],
+        globIgnores: ["**/firebase-messaging-sw.js"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
