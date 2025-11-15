@@ -10,14 +10,24 @@ const path = require('path');
 require('dotenv').config();
 
 // Initialize Firebase Admin
-try {
-  const serviceAccount = require('./serviceAccountKey.json');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  console.log('✅ Firebase Admin initialized');
-} catch (error) {
-  console.warn('⚠️ Firebase Admin initialization failed:', error.message);
+// Only initialize from file if running locally (not in Vercel)
+if (require.main === module) {
+  try {
+    // Use dynamic require to avoid errors if file doesn't exist
+    const fs = require('fs');
+    const path = require('path');
+    const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
+
+    if (fs.existsSync(serviceAccountPath)) {
+      const serviceAccount = require(serviceAccountPath);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      console.log('✅ Firebase Admin initialized from file');
+    }
+  } catch (error) {
+    console.warn('⚠️ Firebase Admin initialization failed:', error.message);
+  }
 }
 
 const app = express();

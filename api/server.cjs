@@ -75,15 +75,23 @@ const handler = serverless(app, {
 });
 
 // Vercel serverless function handler
-module.exports = async (req, res) => {
+// Wrap the handler to ensure MongoDB connection before each request
+const wrappedHandler = async (req, res) => {
   try {
+    console.log('📥 Request received:', req.method, req.url);
+    console.log('🔍 Environment variables check:');
+    console.log('  - MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
+    console.log('  - FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID ? '✅ Set' : '❌ Missing');
+    
     // Ensure MongoDB is connected before handling request
     await connectDB();
+    console.log('✅ MongoDB ready');
     
     // Handle the request with serverless-wrapped Express app
-    return handler(req, res);
+    return await handler(req, res);
   } catch (error) {
-    console.error('Error in serverless function:', error);
+    console.error('❌ Error in serverless function:', error);
+    console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
     
     // Send error response if headers haven't been sent
@@ -91,8 +99,10 @@ module.exports = async (req, res) => {
       return res.status(500).json({ 
         error: 'Internal server error', 
         details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        stack: process.env.VERCEL_ENV === 'development' ? error.stack : undefined
       });
     }
   }
 };
+
+module.exports = wrappedHandler;
