@@ -79,6 +79,17 @@ const handler = serverless(app, {
 const wrappedHandler = async (req, res) => {
   try {
     console.log('📥 Request received:', req.method, req.url);
+    console.log('📋 Request path:', req.path);
+    console.log('🔗 Original URL:', req.originalUrl || req.url);
+
+    // Ensure the path includes /api prefix for Express routes
+    // Vercel rewrite might strip it, so we need to preserve it
+    if (req.url && !req.url.startsWith('/api')) {
+      req.url = '/api' + req.url;
+      req.originalUrl = '/api' + (req.originalUrl || req.url);
+    }
+
+    console.log('📋 Adjusted path:', req.url);
     console.log('🔍 Environment variables check:');
     console.log('  - MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
     console.log('  - FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID ? '✅ Set' : '❌ Missing');
