@@ -25,14 +25,36 @@ async function apiRequest<T>(
       ...options,
     });
 
-    const data = await response.json();
+    let data;
+    const text = await response.text();
+    try {
+      if (!text) {
+        data = {};
+      } else {
+        data = JSON.parse(text);
+      }
+    } catch (parseError) {
+      return {
+        success: false,
+        error: `Request failed with status ${response.status}: ${
+          text || "Unknown error"
+        }`,
+      };
+    }
 
     if (!response.ok) {
-      return { success: false, error: data.error || "Request failed" };
+      return {
+        success: false,
+        error:
+          data.error ||
+          data.message ||
+          `Request failed with status ${response.status}`,
+      };
     }
 
     return { success: true, data };
   } catch (error) {
+    console.error("API Request Error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Network error",
@@ -237,8 +259,9 @@ export const usersApi = {
       method: "POST",
       body: JSON.stringify({ email, pin, name }),
     }),
-  signup: (name: string, email: string, phone: string, pin: string) =>
-    apiRequest<{
+  signup: (name: string, email: string, phone: string, pin: string) => {
+    const pinStr = String(pin);
+    return apiRequest<{
       user: User & {
         email: string;
         phone: string;
@@ -256,8 +279,9 @@ export const usersApi = {
       token: string;
     }>("/users/signup", {
       method: "POST",
-      body: JSON.stringify({ name, email, phone, pin }),
-    }),
+      body: JSON.stringify({ name, email, phone, pin: pinStr }),
+    });
+  },
   createSpace: (userId: string, spaceName?: string) =>
     apiRequest<{
       user: User & {

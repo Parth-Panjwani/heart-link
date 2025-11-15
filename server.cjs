@@ -40,13 +40,20 @@ app.use(express.json({ limit: '10mb' })); // Limit JSON payload size
 
 // MongoDB connection
 // Only connect if running directly (not imported as module)
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://nidhipanjwani:nidhi@189@nidhi.wlb4xkj.mongodb.net/heart-link';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://superparth:parth123@russia.eejnxrp.mongodb.net/heart-link?retryWrites=true&w=majority&authSource=admin';
 
 if (require.main === module) {
   // Only connect when running directly (local development)
-  mongoose.connect(MONGODB_URI)
-    .then(() => console.log('✅ Connected to MongoDB'))
-    .catch(err => console.error('❌ MongoDB connection error:', err));
+  mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,
+  })
+    .then(() => {
+      console.log('✅ Connected to MongoDB');
+      console.log('📊 Database:', mongoose.connection.name);
+    })
+    .catch(err => {
+      console.error('❌ MongoDB connection error:', err.message);
+    });
 }
 
 // Helper function to generate space code
@@ -827,36 +834,32 @@ app.post('/api/users/login', async (req, res) => {
 // Create new user (signup) - WITHOUT creating space
 app.post('/api/users/signup', async (req, res) => {
   try {
-    // Log incoming request for debugging
-    console.log('📝 Signup request received:', {
-      body: req.body,
-      contentType: req.headers['content-type']
-    });
 
     const { name, email, phone, pin } = req.body;
 
     if (!name || !email || !phone || !pin) {
-      console.error('❌ Missing required fields:', { name: !!name, email: !!email, phone: !!phone, pin: !!pin });
       return res.status(400).json({ error: 'Name, email, phone, and PIN are required' });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      console.error('❌ Invalid email format:', email);
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
     // Validate PIN format
     if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-      console.error('❌ Invalid PIN format:', { pin, length: pin.length, isNumeric: /^\d{4}$/.test(pin) });
       return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+    }
+
+    // Check MongoDB connection state
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(500).json({ error: 'Database connection not available' });
     }
 
     // Check if email already exists
     const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
-      console.error('❌ Email already registered:', email.toLowerCase().trim());
       return res.status(400).json({ error: 'Email already registered' });
     }
 
@@ -877,8 +880,6 @@ app.post('/api/users/signup', async (req, res) => {
     });
 
     await user.save();
-
-    console.log('✅ User created successfully:', { userId: user.userId, email: user.email });
 
     res.status(201).json({
       success: true,
@@ -902,8 +903,11 @@ app.post('/api/users/signup', async (req, res) => {
       token: user.userId,
     });
   } catch (error) {
-    console.error('❌ Signup error:', error.message);
-    console.error('❌ Error details:', { code: error.code, name: error.name });
+    // Check for MongoDB authentication errors
+    if (error.message && (error.message.includes('bad auth') || error.message.includes('authentication failed'))) {
+      console.error('❌ MongoDB Authentication Error:', error.message);
+      return res.status(500).json({ error: 'Database authentication failed. Please check MongoDB credentials.' });
+    }
 
     if (error.code === 11000) {
       // Duplicate key error - only check for email, ignore PIN
@@ -913,7 +917,6 @@ app.post('/api/users/signup', async (req, res) => {
       // If it's a PIN duplicate error, ignore it (PINs can be reused)
       if (error.keyPattern?.pin) {
         // PIN can be reused, so we'll just continue - retry the save
-        console.log('PIN duplicate detected but allowed - PINs can be reused');
         // The user should already be saved, so we can return success
         // But to be safe, let's try to find the user and return it
         try {
@@ -1093,7 +1096,6 @@ app.post('/api/users/join-space', async (req, res) => {
       // If it's a PIN duplicate error, ignore it (PINs can be reused)
       if (error.keyPattern?.pin) {
         // PIN can be reused, so we'll just continue - retry the save
-        console.log('PIN duplicate detected but allowed - PINs can be reused');
         // The user should already be saved, so we can return success
         // But to be safe, let's try to find the user and return it
         try {

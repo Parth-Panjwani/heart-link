@@ -30,35 +30,18 @@ async function connectDB() {
     throw new Error('MONGODB_URI environment variable is required');
   }
   
-  // Log connection string (without password) for debugging
-  const uriForLogging = MONGODB_URI.replace(/:[^:@]+@/, ':****@');
-  console.log('🔗 Attempting MongoDB connection:', uriForLogging);
-  
   try {
     isConnecting = true;
     // Connect if not already connected
     if (mongoose.connection.readyState === 0) {
-      // Remove deprecated options - they're not needed in mongoose 8+
       mongooseConnection = await mongoose.connect(MONGODB_URI);
-      console.log('✅ MongoDB connected successfully');
+      console.log('✅ MongoDB connected');
     }
     isConnecting = false;
     return mongoose.connection;
   } catch (error) {
     isConnecting = false;
     console.error('❌ MongoDB connection error:', error.message);
-    console.error('❌ Error code:', error.code);
-    console.error('❌ Error name:', error.name);
-    
-    // Provide helpful error message
-    if (error.message && error.message.includes('bad auth')) {
-      console.error('💡 Authentication failed. Please check:');
-      console.error('   1. MONGODB_URI environment variable in Vercel');
-      console.error('   2. Username and password are correct');
-      console.error('   3. Password does not contain @ (or is URL encoded as %40)');
-      console.error('   4. Database user has proper permissions');
-    }
-    
     throw error;
   }
 }
@@ -95,14 +78,6 @@ export default async (req, res) => {
     // Vercel automatically preserves the original URL in req.url
     // So req.url should be /api/users/signup, not /api/server
     
-    // Log for debugging (these will show in Vercel function logs)
-    console.log('📥 Request received:', {
-      method: req.method,
-      url: req.url,
-      originalUrl: req.originalUrl,
-      path: req.path,
-      query: req.query
-    });
     
     // Ensure MongoDB is connected before handling request
     await connectDB();
