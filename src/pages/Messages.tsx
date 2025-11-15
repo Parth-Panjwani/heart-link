@@ -8,6 +8,7 @@ import {
   CheckCheck,
   UserPlus,
   Bell,
+  Lock,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -316,6 +317,34 @@ const Messages = () => {
   }, [isPartnerSelectOpen, user]);
 
   if (!user) return null;
+
+  // Show locked screen if user doesn't have a space
+  if (!user.spaceCode || !user.spaceId) {
+    return (
+      <div className="min-h-screen pb-24 flex items-center justify-center p-4">
+        <div className="glass-card rounded-2xl p-12 text-center card-elevated max-w-md w-full">
+          <div className="flex flex-col items-center">
+            <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-6">
+              <Lock className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-3">
+              Messages Locked
+            </h2>
+            <p className="text-muted-foreground mb-6 text-center">
+              Create or join a space to unlock messages and start connecting with your family and partner.
+            </p>
+            <Button
+              onClick={() => navigate("/home")}
+              className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
+            >
+              <Heart className="w-4 h-4 mr-2" />
+              Go to Home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Users see their own messages and partner messages
   const myMessages = messages.filter((m) => m.senderId === user.id);
@@ -763,16 +792,38 @@ const Messages = () => {
         ) : (
           <div className="glass-card rounded-2xl p-12 text-center card-elevated">
             <UserPlus className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-semibold text-foreground mb-2">
-              Select a Space Member
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              Choose someone from your space to start sending messages
-            </p>
-            <Button onClick={() => setIsPartnerSelectOpen(true)}>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Select Member
-            </Button>
+            {user.spaceCode && user.spaceId ? (
+              <>
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Select a Space Member
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  Choose someone from your space to start sending messages
+                </p>
+                <Button onClick={() => setIsPartnerSelectOpen(true)}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Select Member
+                </Button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Messages Feature
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  Create or join a space to start sending messages with your family and partner. You can continue using other features solo.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button 
+                    onClick={() => navigate('/home')}
+                    variant="outline"
+                  >
+                    <Heart className="w-4 h-4 mr-2" />
+                    Go to Home
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

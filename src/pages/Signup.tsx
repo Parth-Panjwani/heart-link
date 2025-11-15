@@ -5,20 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Lock,
   User,
   Mail,
   Phone,
-  Sparkles,
   ArrowRight,
-  LogIn,
-  Users,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,30 +20,26 @@ const Signup = () => {
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showSpaceModal, setShowSpaceModal] = useState(false);
-  const [spaceAction, setSpaceAction] = useState<"create" | "join">("create");
-  const [spaceName, setSpaceName] = useState("");
-  const [spaceCode, setSpaceCode] = useState("");
   const [showLogin, setShowLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPin, setLoginPin] = useState("");
   const [loginName, setLoginName] = useState("");
-  const { signup, createSpace, joinSpaceForUser, login, user } = useAuth();
+  const { signup, login, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Show space modal if user is logged in but doesn't have a space
+  // Redirect to home if user is logged in (don't show modal on signup page)
   useEffect(() => {
-    if (user && !user.spaceCode && !user.spaceId) {
-      setShowSpaceModal(true);
-      // If spaceCode is in URL, pre-fill it and switch to join mode
+    if (user) {
+      // If spaceCode is in URL, navigate to home with it
       const urlSpaceCode = searchParams.get("spaceCode");
       if (urlSpaceCode) {
-        setSpaceCode(urlSpaceCode.toUpperCase());
-        setSpaceAction("join");
+        navigate(`/home?spaceCode=${urlSpaceCode}`);
+      } else {
+        navigate("/home");
       }
     }
-  }, [user, searchParams]);
+  }, [user, searchParams, navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,38 +75,7 @@ const Signup = () => {
     setLoading(false);
 
     if (success) {
-      // Show modal to choose space action
-      setShowSpaceModal(true);
-    }
-  };
-
-  const handleCreateSpace = async () => {
-    if (!user) return;
-
-    setLoading(true);
-    const success = await createSpace(user.id, spaceName.trim() || undefined);
-    setLoading(false);
-
-    if (success) {
-      setShowSpaceModal(false);
-      navigate("/home");
-    }
-  };
-
-  const handleJoinSpace = async () => {
-    if (!user) return;
-
-    if (!spaceCode.trim() || spaceCode.length !== 6) {
-      toast.error("Space code must be 6 characters");
-      return;
-    }
-
-    setLoading(true);
-    const success = await joinSpaceForUser(user.id, spaceCode.toUpperCase());
-    setLoading(false);
-
-    if (success) {
-      setShowSpaceModal(false);
+      // Navigate directly to home page (don't show modal here)
       navigate("/home");
     }
   };
@@ -146,14 +102,7 @@ const Signup = () => {
     setLoading(false);
 
     if (success) {
-      const userData = JSON.parse(
-        localStorage.getItem("heartLink_currentUser") || "{}"
-      );
-      if (!userData.spaceCode || !userData.spaceId) {
-        setShowSpaceModal(true);
-      } else {
-        navigate("/home");
-      }
+      navigate("/home");
     }
   };
 
@@ -176,19 +125,13 @@ const Signup = () => {
     setPhone(value);
   };
 
-  const handleSpaceCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    if (value.length <= 6) {
-      setSpaceCode(value);
-    }
-  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-6 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
             <img
               src="/logo.png"
               alt="Heart Link Logo"
@@ -441,140 +384,6 @@ const Signup = () => {
           </div>
         )}
 
-        {/* Space Selection Modal */}
-        <Dialog open={showSpaceModal} onOpenChange={setShowSpaceModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold">
-                Choose Your Space
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Create a new space or join an existing one
-              </p>
-            </DialogHeader>
-
-            <div className="space-y-4 pt-4">
-              {/* Action Toggle */}
-              <div className="flex gap-2 p-1 bg-muted/50 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setSpaceAction("create")}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all ${
-                    spaceAction === "create"
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    Create Space
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSpaceAction("join")}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all ${
-                    spaceAction === "join"
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Users className="w-4 h-4" />
-                    Join Space
-                  </div>
-                </button>
-              </div>
-
-              {/* Create Space Form */}
-              {spaceAction === "create" && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="space-name"
-                      className="text-sm font-semibold"
-                    >
-                      Space Name{" "}
-                      <span className="text-muted-foreground font-normal text-xs">
-                        (Optional)
-                      </span>
-                    </Label>
-                    <div className="relative">
-                      <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="space-name"
-                        type="text"
-                        placeholder="e.g., Our Family Space"
-                        value={spaceName}
-                        onChange={(e) => setSpaceName(e.target.value)}
-                        className="pl-10 h-10 text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={handleCreateSpace}
-                    className="w-full h-10 text-sm font-semibold"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      "Creating..."
-                    ) : (
-                      <>
-                        Create Space
-                        <Sparkles className="w-3 h-3 ml-2" />
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-
-              {/* Join Space Form */}
-              {spaceAction === "join" && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="space-code"
-                      className="text-sm font-semibold"
-                    >
-                      Space Code
-                    </Label>
-                    <div className="relative">
-                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="space-code"
-                        type="text"
-                        placeholder="ABCDEF"
-                        value={spaceCode}
-                        onChange={handleSpaceCodeChange}
-                        className="pl-10 text-center text-lg font-bold tracking-widest h-10 uppercase"
-                        maxLength={6}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Ask the space creator for the 6-character code
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={handleJoinSpace}
-                    className="w-full h-10 text-sm font-semibold"
-                    disabled={loading || spaceCode.length !== 6}
-                  >
-                    {loading ? (
-                      "Joining..."
-                    ) : (
-                      <>
-                        Join Space
-                        <Users className="w-3 h-3 ml-2" />
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

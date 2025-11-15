@@ -45,18 +45,51 @@ const TimeConverter = ({
     return { hour: hour24 - 12, period: "PM" as const };
   };
 
-  // Calculate timezone difference dynamically
+  // Calculate timezone offset in hours from UTC using a reliable method
   const getTimezoneOffset = (timezone: string): number => {
     try {
       const now = new Date();
-      const utcTime = new Date(
-        now.toLocaleString("en-US", { timeZone: "UTC" })
-      );
-      const tzTime = new Date(
-        now.toLocaleString("en-US", { timeZone: timezone })
-      );
-      return (tzTime.getTime() - utcTime.getTime()) / (1000 * 60 * 60); // hours
-    } catch {
+      
+      // Use Intl.DateTimeFormat to get offset string (most reliable)
+      const formatter = new Intl.DateTimeFormat("en", {
+        timeZone: timezone,
+        timeZoneName: "longOffset",
+      });
+      
+      const parts = formatter.formatToParts(now);
+      const offsetPart = parts.find((part) => part.type === "timeZoneName");
+      
+      if (offsetPart && offsetPart.value) {
+        // Parse offset like "GMT+05:30", "GMT-08:00", "GMT+0", etc.
+        const offsetStr = offsetPart.value.replace(/GMT|UTC/gi, "").trim();
+        
+        if (offsetStr) {
+          const sign = offsetStr.startsWith("-") ? -1 : 1;
+          const cleanStr = offsetStr.replace(/^[+-]/, "");
+          
+          if (cleanStr.includes(":")) {
+            const [hours = 0, minutes = 0] = cleanStr.split(":").map(Number);
+            const offset = sign * (hours + minutes / 60);
+            return offset;
+          } else {
+            // Just hours, no minutes
+            const hours = Number(cleanStr) || 0;
+            return sign * hours;
+          }
+        }
+      }
+      
+      // Fallback: Calculate using Date methods
+      // Get the UTC offset for the current timezone
+      const utcTime = now.getTime();
+      const localTime = new Date(now.toLocaleString("en-US", { timeZone: timezone })).getTime();
+      const utcLocalTime = new Date(now.toLocaleString("en-US", { timeZone: "UTC" })).getTime();
+      
+      // Calculate offset
+      const offset = (localTime - utcLocalTime) / (1000 * 60 * 60);
+      return offset;
+    } catch (error) {
+      console.error(`Error calculating timezone offset for ${timezone}:`, error);
       return 0;
     }
   };
@@ -66,22 +99,85 @@ const TimeConverter = ({
     minute: number,
     period: "AM" | "PM"
   ) => {
-    const hour24 = to24Hour(hour, period);
-    const offset1 = timezone1 ? getTimezoneOffset(timezone1) : 5.5; // Default to India
-    const offset2 = timezone2 ? getTimezoneOffset(timezone2) : 7; // Default to Krasnoyarsk
-    const diffHours = offset2 - offset1;
-
-    const totalMinutes = hour24 * 60 + minute + diffHours * 60;
-    let newHour24 = Math.floor(totalMinutes / 60) % 24;
-    let newMinute = totalMinutes % 60;
-
-    if (newHour24 < 0) newHour24 += 24;
-    if (newMinute < 0) {
-      newMinute += 60;
-      newHour24 = (newHour24 - 1 + 24) % 24;
+    if (!timezone1 || !timezone2) {
+      // Fallback to simple calculation if timezones not available
+      const hour24 = to24Hour(hour, period);
+      const offset1 = 5.5; // Default to India
+      const offset2 = 7; // Default to Krasnoyarsk
+      const diffHours = offset2 - offset1;
+      const totalMinutes = hour24 * 60 + minute;
+      const convertedMinutes = totalMinutes + diffHours * 60;
+      let finalMinutes = convertedMinutes % (24 * 60);
+      if (finalMinutes < 0) finalMinutes += 24 * 60;
+      const newHour24 = Math.floor(finalMinutes / 60);
+      const newMinute = Math.round(finalMinutes % 60);
+      const result = to12Hour(newHour24);
+      return { ...result, minute: newMinute };
     }
 
-    return to12Hour(newHour24);
+    try {
+      // Use Date API for accurate conversion
+      // Create a date representing today at the input time in timezone1
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const day = today.getDate();
+      
+      const hour24 = to24Hour(hour, period);
+      
+      // Create a date string in timezone1 format
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+      
+      // Create date assuming it's in timezone1, then convert to timezone2
+      const formatter1 = new Intl.DateTimeFormat("en", {
+        timeZone: timezone1,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      
+      // Parse the time in timezone1 to get UTC equivalent
+      const parts1 = formatter1.formatToParts(new Date(dateStr + 'Z'));
+      const tz1Date = new Date(
+        parseInt(parts1.find(p => p.type === 'year')?.value || '0'),
+        parseInt(parts1.find(p => p.type === 'month')?.value || '0') - 1,
+        parseInt(parts1.find(p => p.type === 'day')?.value || '0'),
+        parseInt(parts1.find(p => p.type === 'hour')?.value || '0'),
+        parseInt(parts1.find(p => p.type === 'minute')?.value || '0')
+      );
+      
+      // Now format this UTC time in timezone2
+      const formatter2 = new Intl.DateTimeFormat("en", {
+        timeZone: timezone2,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      
+      const parts2 = formatter2.formatToParts(tz1Date);
+      const hour24Result = parseInt(parts2.find(p => p.type === 'hour')?.value || '0');
+      const minuteResult = parseInt(parts2.find(p => p.type === 'minute')?.value || '0');
+      
+      const result = to12Hour(hour24Result);
+      return { ...result, minute: minuteResult };
+    } catch (error) {
+      // Fallback to offset-based calculation
+      const hour24 = to24Hour(hour, period);
+      const offset1 = getTimezoneOffset(timezone1);
+      const offset2 = getTimezoneOffset(timezone2);
+      const diffHours = offset2 - offset1;
+      const totalMinutes = hour24 * 60 + minute;
+      const convertedMinutes = totalMinutes + diffHours * 60;
+      let finalMinutes = convertedMinutes % (24 * 60);
+      if (finalMinutes < 0) finalMinutes += 24 * 60;
+      const newHour24 = Math.floor(finalMinutes / 60);
+      const newMinute = Math.round(finalMinutes % 60);
+      const result = to12Hour(newHour24);
+      return { ...result, minute: newMinute };
+    }
   };
 
   const convertToCountry1 = (
@@ -89,22 +185,85 @@ const TimeConverter = ({
     minute: number,
     period: "AM" | "PM"
   ) => {
-    const hour24 = to24Hour(hour, period);
-    const offset1 = timezone1 ? getTimezoneOffset(timezone1) : 5.5;
-    const offset2 = timezone2 ? getTimezoneOffset(timezone2) : 7;
-    const diffHours = offset1 - offset2;
-
-    const totalMinutes = hour24 * 60 + minute + diffHours * 60;
-    let newHour24 = Math.floor(totalMinutes / 60) % 24;
-    let newMinute = totalMinutes % 60;
-
-    if (newHour24 < 0) newHour24 += 24;
-    if (newMinute < 0) {
-      newMinute += 60;
-      newHour24 = (newHour24 - 1 + 24) % 24;
+    if (!timezone1 || !timezone2) {
+      // Fallback to simple calculation if timezones not available
+      const hour24 = to24Hour(hour, period);
+      const offset1 = 5.5; // Default to India
+      const offset2 = 7; // Default to Krasnoyarsk
+      const diffHours = offset1 - offset2;
+      const totalMinutes = hour24 * 60 + minute;
+      const convertedMinutes = totalMinutes + diffHours * 60;
+      let finalMinutes = convertedMinutes % (24 * 60);
+      if (finalMinutes < 0) finalMinutes += 24 * 60;
+      const newHour24 = Math.floor(finalMinutes / 60);
+      const newMinute = Math.round(finalMinutes % 60);
+      const result = to12Hour(newHour24);
+      return { ...result, minute: newMinute };
     }
 
-    return to12Hour(newHour24);
+    try {
+      // Use Date API for accurate conversion
+      // Create a date representing today at the input time in timezone2
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const day = today.getDate();
+      
+      const hour24 = to24Hour(hour, period);
+      
+      // Create a date string in timezone2 format
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+      
+      // Create date assuming it's in timezone2, then convert to timezone1
+      const formatter2 = new Intl.DateTimeFormat("en", {
+        timeZone: timezone2,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      
+      // Parse the time in timezone2 to get UTC equivalent
+      const parts2 = formatter2.formatToParts(new Date(dateStr + 'Z'));
+      const tz2Date = new Date(
+        parseInt(parts2.find(p => p.type === 'year')?.value || '0'),
+        parseInt(parts2.find(p => p.type === 'month')?.value || '0') - 1,
+        parseInt(parts2.find(p => p.type === 'day')?.value || '0'),
+        parseInt(parts2.find(p => p.type === 'hour')?.value || '0'),
+        parseInt(parts2.find(p => p.type === 'minute')?.value || '0')
+      );
+      
+      // Now format this UTC time in timezone1
+      const formatter1 = new Intl.DateTimeFormat("en", {
+        timeZone: timezone1,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      
+      const parts1 = formatter1.formatToParts(tz2Date);
+      const hour24Result = parseInt(parts1.find(p => p.type === 'hour')?.value || '0');
+      const minuteResult = parseInt(parts1.find(p => p.type === 'minute')?.value || '0');
+      
+      const result = to12Hour(hour24Result);
+      return { ...result, minute: minuteResult };
+    } catch (error) {
+      // Fallback to offset-based calculation
+      const hour24 = to24Hour(hour, period);
+      const offset1 = getTimezoneOffset(timezone1);
+      const offset2 = getTimezoneOffset(timezone2);
+      const diffHours = offset1 - offset2;
+      const totalMinutes = hour24 * 60 + minute;
+      const convertedMinutes = totalMinutes + diffHours * 60;
+      let finalMinutes = convertedMinutes % (24 * 60);
+      if (finalMinutes < 0) finalMinutes += 24 * 60;
+      const newHour24 = Math.floor(finalMinutes / 60);
+      const newMinute = Math.round(finalMinutes % 60);
+      const result = to12Hour(newHour24);
+      return { ...result, minute: newMinute };
+    }
   };
 
   useEffect(() => {

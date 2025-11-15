@@ -192,8 +192,8 @@ app.get('/api/events', async (req, res) => {
         const spaceUserIds = spaceUsers.map(u => u.userId);
         events = await Event.find({ userId: { $in: spaceUserIds } }).sort({ createdAt: -1 });
       } else {
-        // User has no space yet, return empty
-        events = [];
+        // User has no space yet, return only their own events (solo mode)
+        events = await Event.find({ userId: user.userId }).sort({ createdAt: -1 });
       }
     } else {
       events = await Event.find().sort({ createdAt: -1 });

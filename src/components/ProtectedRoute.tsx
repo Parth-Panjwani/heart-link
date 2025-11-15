@@ -29,18 +29,8 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/signup" replace />;
   }
 
-  // Check if user has a space - allow them to stay on signup page to complete space selection
-  if (!user.spaceCode || !user.spaceId) {
-    if (
-      window.location.pathname !== "/signup" &&
-      window.location.pathname !== "/choose-space"
-    ) {
-      // User needs to complete space selection, but allow them to stay on signup page
-      if (window.location.pathname !== "/signup") {
-        return <Navigate to="/signup" replace />;
-      }
-    }
-  }
+  // Allow users without a space to use the app solo (with limited features)
+  // No redirect needed - they can use the app and will see prompts to create/join space
 
   // Redirect authenticated users from root to home
   if (window.location.pathname === "/") {

@@ -75,7 +75,7 @@ const Login = () => {
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 mb-6 shadow-lg">
+          <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 mb-6">
             <img
               src="/logo.png"
               alt="Heart Link Logo"
