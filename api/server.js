@@ -34,10 +34,8 @@ async function connectDB() {
     isConnecting = true;
     // Connect if not already connected
     if (mongoose.connection.readyState === 0) {
-      mongooseConnection = await mongoose.connect(MONGODB_URI, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      });
+      // Remove deprecated options - they're not needed in mongoose 8+
+      mongooseConnection = await mongoose.connect(MONGODB_URI);
       console.log('✅ MongoDB connected');
     }
     isConnecting = false;
