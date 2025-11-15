@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Download, Heart, Smartphone } from "lucide-react";
+import { Download, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -26,7 +26,7 @@ const Install = () => {
 
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    
+
     if (outcome === "accepted") {
       setDeferredPrompt(null);
       setIsInstallable(false);
@@ -36,17 +36,21 @@ const Install = () => {
   return (
     <div className="min-h-screen pb-24 pt-12 flex items-center justify-center">
       <div className="max-w-md mx-auto px-4">
-        <div className="glass-card rounded-2xl p-8 shadow-soft text-center space-y-6">
+        <div className="glass-card rounded-2xl p-8 card-elevated text-center space-y-6">
           <div className="flex justify-center">
             <div className="relative">
               <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl"></div>
-              <Heart className="w-16 h-16 text-primary relative animate-gentle-pulse" />
+              <img
+                src="/logo.png"
+                alt="Heart Link Logo"
+                className="w-16 h-16 relative animate-gentle-pulse object-contain"
+              />
             </div>
           </div>
 
           <div>
             <h1 className="text-2xl font-bold text-foreground mb-2">
-              Install Connected Hearts
+              Install Heart Link
             </h1>
             <p className="text-muted-foreground">
               Get the full experience on your device

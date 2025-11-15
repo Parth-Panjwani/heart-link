@@ -62,7 +62,21 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/ca553c6f-0abd-49dd-869d-e5d4e021592e) and click on Share -> Publish.
+### Quick Deploy to Vercel
+
+1. **Deploy Backend First** (Railway or Render):
+   - See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for detailed instructions
+   - Get your backend URL (e.g., `https://your-backend.railway.app`)
+
+2. **Deploy Frontend to Vercel**:
+   - Push your code to GitHub
+   - Go to [vercel.com](https://vercel.com) and import your repository
+   - Add environment variable: `VITE_API_URL=https://your-backend.railway.app/api`
+   - Deploy!
+
+For detailed deployment instructions, see:
+- [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - Complete deployment guide
+- [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md) - Step-by-step checklist
 
 ## Can I connect a custom domain to my Lovable project?
 

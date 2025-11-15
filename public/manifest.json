@@ -1,6 +1,6 @@
 {
-  "name": "Connected Hearts - Distance Relationship Tracker",
-  "short_name": "Connected Hearts",
+  "name": "Heart Link - Distance Relationship Tracker",
+  "short_name": "Heart Link",
   "description": "Stay connected with loved ones across time zones and distance",
   "start_url": "/",
   "display": "standalone",

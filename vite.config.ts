@@ -17,9 +17,10 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["icon-192.png", "icon-512.png"],
       manifest: {
-        name: "Connected Hearts - Distance Relationship Tracker",
-        short_name: "Connected Hearts",
-        description: "Stay connected with loved ones across time zones and distance",
+        name: "Heart Link - Distance Relationship Tracker",
+        short_name: "Heart Link",
+        description:
+          "Stay connected with loved ones across time zones and distance",
         theme_color: "#FA9A85",
         background_color: "#F9F5F2",
         display: "standalone",
@@ -41,6 +42,8 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // Exclude Firebase messaging service worker from VitePWA handling
+        exclude: [/firebase-messaging-sw\.js$/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

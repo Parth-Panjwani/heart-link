@@ -8,31 +8,46 @@ interface WeatherData {
   icon: string;
 }
 
-export const useWeather = (city: string, countryCode: string, apiKey: string | null) => {
+export const useWeather = (
+  city: string,
+  countryCode: string,
+  apiKey?: string | null,
+  timezone?: string,
+  coordinates?: { lat: number; lng: number }
+) => {
   const [weather, setWeather] = useState<WeatherData>({
     temp: 22,
     condition: "clear",
     description: "Clear sky",
     icon: "01d",
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!apiKey) return;
-
     const getWeather = async () => {
       setLoading(true);
-      const data = await fetchWeather(city, countryCode, apiKey);
-      setWeather(data);
-      setLoading(false);
+      try {
+        const data = await fetchWeather(
+          city,
+          countryCode,
+          apiKey,
+          timezone,
+          coordinates
+        );
+        setWeather(data);
+      } catch (error) {
+        console.error("Failed to fetch weather:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     getWeather();
-    // Refresh weather every 30 minutes
-    const interval = setInterval(getWeather, 30 * 60 * 1000);
+    // Refresh weather every 10 minutes for live updates
+    const interval = setInterval(getWeather, 10 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [city, countryCode, apiKey]);
+  }, [city, countryCode, apiKey, timezone, coordinates]);
 
   return { weather, loading };
 };
