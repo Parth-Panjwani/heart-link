@@ -11,31 +11,51 @@ const EmotionalQuote = () => {
     const loadQuotes = async () => {
       try {
         setLoading(true);
-        const response = await quotesApi.getAll(8); // Get 8 random quotes
+        const response = await quotesApi.getAll(12); // Get 12 random quotes
         if (
           response.success &&
           response.data?.quotes &&
           response.data.quotes.length > 0
         ) {
-          setQuotes(response.data.quotes);
-          // Randomize initial quote
-          setCurrentQuote(
-            Math.floor(Math.random() * response.data.quotes.length)
+          // Shuffle the quotes array to ensure randomization
+          const shuffled = [...response.data.quotes].sort(
+            () => Math.random() - 0.5
           );
+          setQuotes(shuffled);
+          // Randomize initial quote
+          setCurrentQuote(Math.floor(Math.random() * shuffled.length));
         } else {
-          // Fallback if API fails
-          setQuotes([
+          // Fallback if API fails - use more quotes
+          const fallbackQuotes = [
             "Even thousands of kilometers apart, our hearts beat as one ❤️",
             "Distance means nothing when someone means everything 💕",
-          ]);
+            "Love knows no distance; it has no continent; its eyes are for the stars ✨",
+            "The best thing to hold onto in life is each other 💖",
+            "No matter where you are, you're always in my heart 🫶",
+            "Every heartbeat reminds me of you, no matter the miles between us 💗",
+            "You're my home, no matter where I am 🌍❤️",
+            "Distance is just a test to see how far love can travel 🚀💝",
+          ];
+          const shuffled = [...fallbackQuotes].sort(() => Math.random() - 0.5);
+          setQuotes(shuffled);
+          setCurrentQuote(Math.floor(Math.random() * shuffled.length));
         }
       } catch (error) {
         console.error("Failed to load quotes:", error);
-        // Fallback quotes
-        setQuotes([
+        // Fallback quotes - more variety
+        const fallbackQuotes = [
           "Even thousands of kilometers apart, our hearts beat as one ❤️",
           "Distance means nothing when someone means everything 💕",
-        ]);
+          "Love knows no distance; it has no continent; its eyes are for the stars ✨",
+          "The best thing to hold onto in life is each other 💖",
+          "No matter where you are, you're always in my heart 🫶",
+          "Every heartbeat reminds me of you, no matter the miles between us 💗",
+          "You're my home, no matter where I am 🌍❤️",
+          "Distance is just a test to see how far love can travel 🚀💝",
+        ];
+        const shuffled = [...fallbackQuotes].sort(() => Math.random() - 0.5);
+        setQuotes(shuffled);
+        setCurrentQuote(Math.floor(Math.random() * shuffled.length));
       } finally {
         setLoading(false);
       }
@@ -52,20 +72,22 @@ const EmotionalQuote = () => {
       // Randomly select next quote (not just sequential)
       setCurrentQuote(Math.floor(Math.random() * quotes.length));
 
-      // Every 5 rotations, refresh quotes from API
+      // Every 5 rotations, refresh quotes from API to get new random quotes
       if (Math.random() < 0.2) {
         quotesApi
-          .getAll(8)
+          .getAll(12)
           .then((response) => {
             if (
               response.success &&
               response.data?.quotes &&
               response.data.quotes.length > 0
             ) {
-              setQuotes(response.data.quotes);
-              setCurrentQuote(
-                Math.floor(Math.random() * response.data.quotes.length)
+              // Shuffle the new quotes to ensure randomization
+              const shuffled = [...response.data.quotes].sort(
+                () => Math.random() - 0.5
               );
+              setQuotes(shuffled);
+              setCurrentQuote(Math.floor(Math.random() * shuffled.length));
             }
           })
           .catch(console.error);

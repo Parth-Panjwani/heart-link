@@ -1415,9 +1415,11 @@ app.get('/api/quotes/generate', async (req, res) => {
   }
 });
 
-// Get all quotes (for compatibility)
+// Get random quotes - returns array of quotes
 app.get('/api/quotes', async (req, res) => {
   try {
+    const count = parseInt(req.query.count) || 8; // Default to 8 quotes
+
     const quoteTemplates = [
       "Even thousands of kilometers apart, our hearts beat as one ❤️",
       "Distance means nothing when someone means everything 💕",
@@ -1434,9 +1436,42 @@ app.get('/api/quotes', async (req, res) => {
       "Missing you gets easier every day because even though you're one day further from the last time I saw you, you're one day closer to the next time I will 🌅",
       "Distance is not for the fearful, it's for the bold. It's for those who are willing to spend a lot of time alone in exchange for a little time with the one they love 💪💕",
       "I exist in two places: here and where you are 🌍💫",
+      "Our love bridges continents and time zones 🌐💕",
+      "Every sunset reminds me that somewhere, you're seeing the same sky 🌅❤️",
+      "Distance teaches us to appreciate the moments we have together 💫",
+      "You're worth every mile, every time zone, every second apart 💖",
+      "Love doesn't count the miles; it measures the heart 💗",
+      "Being apart is hard, but knowing you're mine makes it worth it 💕",
+      "The space between us is just a reminder of how strong our love is 💪❤️",
+      "I may not be there physically, but I'm always with you in spirit ✨",
+      "Our connection transcends distance and time 🌍💫",
+      "Every day apart is one day closer to being together again 🌅💕",
+      "Love knows no boundaries, no borders, no distance ❤️🌎",
+      "The miles between us can't diminish what we share 💖",
+      "You're my constant, no matter where I am in the world 🌍💕",
+      "Distance is temporary, but our love is forever 💫❤️",
+      "I carry you with me everywhere I go 💌",
+      "Our hearts are synchronized across any distance 💗",
+      "Love is the bridge that connects us, no matter how far apart 🌉❤️",
+      "Every moment apart makes our reunion sweeter 💕",
+      "You're my anchor in this vast world 🌍💖",
+      "Distance is just geography; love is everything ❤️",
+      "Our love story spans continents and defies distance 🌎💫",
+      "Being apart doesn't mean being alone; I feel you with me always 💕",
+      "The best part of my day is knowing you're out there, thinking of me too 💖",
+      "Love doesn't require proximity; it requires connection ❤️",
+      "We may be far, but our hearts beat in sync 💗",
     ];
 
-    res.json(quoteTemplates.map((quote, index) => ({ id: index + 1, quote })));
+    // Shuffle array and get random quotes
+    const shuffled = [...quoteTemplates].sort(() => Math.random() - 0.5);
+    const selectedQuotes = shuffled.slice(0, Math.min(count, quoteTemplates.length));
+
+    res.json({
+      success: true,
+      quotes: selectedQuotes,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch quotes' });
   }
