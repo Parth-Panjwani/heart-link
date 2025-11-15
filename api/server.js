@@ -8,8 +8,9 @@ const admin = require('firebase-admin');
 let mongooseConnection = null;
 
 async function connectDB() {
-  if (mongooseConnection) {
-    return mongooseConnection;
+  // Check if already connected
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
   }
   
   const MONGODB_URI = process.env.MONGODB_URI;
@@ -18,12 +19,15 @@ async function connectDB() {
   }
   
   try {
-    mongooseConnection = await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log('✅ MongoDB connected');
-    return mongooseConnection;
+    // Connect if not already connected
+    if (mongoose.connection.readyState === 0) {
+      mongooseConnection = await mongoose.connect(MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+      console.log('✅ MongoDB connected');
+    }
+    return mongoose.connection;
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
     throw error;
@@ -53,10 +57,22 @@ const app = require('../server.cjs');
 // Vercel serverless function handler
 module.exports = async (req, res) => {
   try {
+    // Ensure MongoDB is connected before handling request
     await connectDB();
+    
+    // Handle the request with Express app
     return app(req, res);
   } catch (error) {
     console.error('Error in serverless function:', error);
-    return res.status(500).json({ error: 'Internal server error', details: error.message });
+    console.error('Error stack:', error.stack);
+    
+    // Send error response if headers haven't been sent
+    if (!res.headersSent) {
+      return res.status(500).json({ 
+        error: 'Internal server error', 
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
   }
 };

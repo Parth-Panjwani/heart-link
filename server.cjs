@@ -29,11 +29,15 @@ app.use(compression()); // Compress all responses
 app.use(express.json({ limit: '10mb' })); // Limit JSON payload size
 
 // MongoDB connection
+// Only connect if running directly (not imported as module)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://nidhipanjwani:nidhi@189@nidhi.wlb4xkj.mongodb.net/heart-link';
 
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+if (require.main === module) {
+  // Only connect when running directly (local development)
+  mongoose.connect(MONGODB_URI)
+    .then(() => console.log('✅ Connected to MongoDB'))
+    .catch(err => console.error('❌ MongoDB connection error:', err));
+}
 
 // Helper function to generate space code
 function generateSpaceCode() {
