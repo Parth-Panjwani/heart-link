@@ -1,16 +1,25 @@
 // Vercel serverless function - Express app wrapper
 // This imports the Express app from server.cjs
 
+const serverless = require('serverless-http');
 const mongoose = require('mongoose');
 const admin = require('firebase-admin');
 
 // MongoDB connection handler
 let mongooseConnection = null;
+let isConnecting = false;
 
 async function connectDB() {
   // Check if already connected
   if (mongoose.connection.readyState === 1) {
     return mongoose.connection;
+  }
+  
+  // If already connecting, wait for it
+  if (isConnecting) {
+    return new Promise((resolve) => {
+      mongoose.connection.once('connected', () => resolve(mongoose.connection));
+    });
   }
   
   const MONGODB_URI = process.env.MONGODB_URI;
@@ -19,6 +28,7 @@ async function connectDB() {
   }
   
   try {
+    isConnecting = true;
     // Connect if not already connected
     if (mongoose.connection.readyState === 0) {
       mongooseConnection = await mongoose.connect(MONGODB_URI, {
@@ -27,24 +37,29 @@ async function connectDB() {
       });
       console.log('✅ MongoDB connected');
     }
+    isConnecting = false;
     return mongoose.connection;
   } catch (error) {
+    isConnecting = false;
     console.error('❌ MongoDB connection error:', error);
     throw error;
   }
 }
 
-// Initialize Firebase Admin from environment variables
+// Initialize Firebase Admin from environment variables (only once)
 try {
   if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      })
-    });
-    console.log('✅ Firebase Admin initialized');
+    // Check if already initialized
+    if (admin.apps.length === 0) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        })
+      });
+      console.log('✅ Firebase Admin initialized');
+    }
   }
 } catch (error) {
   console.warn('⚠️ Firebase Admin initialization failed:', error.message);
@@ -54,14 +69,19 @@ try {
 // server.cjs now exports the app instead of listening
 const app = require('../server.cjs');
 
+// Wrap Express app with serverless-http for Vercel
+const handler = serverless(app, {
+  binary: ['image/*', 'application/pdf'],
+});
+
 // Vercel serverless function handler
 module.exports = async (req, res) => {
   try {
     // Ensure MongoDB is connected before handling request
     await connectDB();
     
-    // Handle the request with Express app
-    return app(req, res);
+    // Handle the request with serverless-wrapped Express app
+    return handler(req, res);
   } catch (error) {
     console.error('Error in serverless function:', error);
     console.error('Error stack:', error.stack);
