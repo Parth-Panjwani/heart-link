@@ -73,22 +73,62 @@ const app = require('../server.cjs');
 // But we need to ensure MongoDB is connected first
 const handler = async (req, res) => {
   try {
-    // Log request details for debugging
-    console.log('📥 Request:', req.method, req.url);
-    console.log('📋 Path details:', {
-      url: req.url,
-      path: req.path,
-      originalUrl: req.originalUrl
-    });
-
     // Vercel rewrite: /api/users/signup -> /api/server
-    // The original path should be preserved in req.url
-    // But if it's missing /api prefix, add it to match Express routes
-    if (req.url && !req.url.startsWith('/api')) {
-      req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
-      req.originalUrl = req.originalUrl || req.url;
-      console.log('📋 Adjusted path:', req.url);
+    // According to Vercel docs, req.url should contain the ORIGINAL path after rewrite
+    // But if it doesn't, we need to check headers or reconstruct it
+    
+    // Log all available information for debugging
+    console.log('📥 Request received:', {
+      method: req.method,
+      url: req.url,
+      originalUrl: req.originalUrl,
+      path: req.path,
+      headers: {
+        'x-vercel-original-path': req.headers['x-vercel-original-path'],
+        'x-vercel-rewrite-path': req.headers['x-vercel-rewrite-path'],
+        'x-original-path': req.headers['x-original-path'],
+        'x-invoke-path': req.headers['x-invoke-path']
+      }
+    });
+    
+    // Vercel should preserve the original URL in req.url
+    // But if we're getting /server or /api/server, we need to fix it
+    let pathToUse = req.url;
+    
+    // Check if we got the rewritten destination path (exactly /server or /api/server)
+    if (pathToUse === '/server' || pathToUse === '/api/server') {
+      // Try to get original path from Vercel headers
+      const originalPath = req.headers['x-vercel-original-path'] || 
+                          req.headers['x-vercel-rewrite-path'] ||
+                          req.headers['x-original-path'];
+      
+      if (originalPath) {
+        pathToUse = originalPath;
+        console.log('✅ Using original path from headers:', pathToUse);
+      } else {
+        // This shouldn't happen, but if it does, log it
+        console.error('❌ Original path not found in headers or req.url');
+        console.error('Full request object keys:', Object.keys(req));
+        // Return error to help debug
+        return res.status(500).json({
+          error: 'Path resolution error',
+          message: 'Could not determine original request path',
+          receivedUrl: req.url,
+          availableHeaders: Object.keys(req.headers).filter(h => h.toLowerCase().includes('path') || h.toLowerCase().includes('vercel'))
+        });
+      }
     }
+    
+    // Ensure path starts with /api for Express routes
+    if (pathToUse && !pathToUse.startsWith('/api')) {
+      pathToUse = '/api' + (pathToUse.startsWith('/') ? pathToUse : '/' + pathToUse);
+    }
+    
+    // Set the URL for Express
+    req.url = pathToUse;
+    req.originalUrl = req.originalUrl || pathToUse;
+    
+    console.log('📋 Final path for Express:', req.url);
     
     // Ensure MongoDB is connected before handling request
     await connectDB();
