@@ -1,7 +1,6 @@
 // Vercel serverless function - Express app wrapper
 // This imports the Express app from server.cjs
 
-const serverless = require('serverless-http');
 const mongoose = require('mongoose');
 const admin = require('firebase-admin');
 
@@ -69,51 +68,44 @@ try {
 // server.cjs now exports the app instead of listening
 const app = require('../server.cjs');
 
-// Wrap Express app with serverless-http for Vercel
-const handler = serverless(app, {
-  binary: ['image/*', 'application/pdf'],
-});
-
 // Vercel serverless function handler
-// Wrap the handler to ensure MongoDB connection before each request
-const wrappedHandler = async (req, res) => {
+// Vercel provides Node.js-compatible req/res, so we can use Express directly
+// But we need to ensure MongoDB is connected first
+const handler = async (req, res) => {
   try {
-    console.log('📥 Request received:', req.method, req.url);
-    console.log('📋 Request path:', req.path);
-    console.log('🔗 Original URL:', req.originalUrl || req.url);
+    // Log request details for debugging
+    console.log('📥 Request:', req.method, req.url);
+    console.log('📋 Path details:', {
+      url: req.url,
+      path: req.path,
+      originalUrl: req.originalUrl
+    });
 
-    // Ensure the path includes /api prefix for Express routes
-    // Vercel rewrite might strip it, so we need to preserve it
+    // Vercel rewrite: /api/users/signup -> /api/server
+    // The original path should be preserved in req.url
+    // But if it's missing /api prefix, add it to match Express routes
     if (req.url && !req.url.startsWith('/api')) {
-      req.url = '/api' + req.url;
-      req.originalUrl = '/api' + (req.originalUrl || req.url);
+      req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+      req.originalUrl = req.originalUrl || req.url;
+      console.log('📋 Adjusted path:', req.url);
     }
-
-    console.log('📋 Adjusted path:', req.url);
-    console.log('🔍 Environment variables check:');
-    console.log('  - MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
-    console.log('  - FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID ? '✅ Set' : '❌ Missing');
     
     // Ensure MongoDB is connected before handling request
     await connectDB();
-    console.log('✅ MongoDB ready');
     
-    // Handle the request with serverless-wrapped Express app
-    return await handler(req, res);
+    // Handle request with Express app directly
+    app(req, res);
   } catch (error) {
-    console.error('❌ Error in serverless function:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    
-    // Send error response if headers haven't been sent
+    console.error('❌ Handler error:', error.message);
+    console.error('Stack:', error.stack);
+
     if (!res.headersSent) {
       return res.status(500).json({ 
         error: 'Internal server error', 
-        details: error.message,
-        stack: process.env.VERCEL_ENV === 'development' ? error.stack : undefined
+        details: error.message
       });
     }
   }
 };
 
-module.exports = wrappedHandler;
+module.exports = handler;
