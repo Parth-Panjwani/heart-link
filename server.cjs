@@ -1233,6 +1233,30 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
+// Get space info by code - MUST be before /api/users/:userId route
+app.get('/api/spaces/:spaceCode', async (req, res) => {
+  try {
+    const { spaceCode } = req.params;
+
+    const spaceOwner = await User.findOne({ spaceCode: spaceCode.toUpperCase() });
+    if (!spaceOwner) {
+      return res.status(404).json({ error: 'Space not found' });
+    }
+
+    res.json({
+      success: true,
+      space: {
+        code: spaceOwner.spaceCode,
+        name: spaceOwner.spaceName,
+        creatorName: spaceOwner.name,
+        creatorId: spaceOwner.userId,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Update user countries and timezones - MUST be before /api/users/:userId route
 app.put('/api/users/:userId/countries', async (req, res) => {
   try {

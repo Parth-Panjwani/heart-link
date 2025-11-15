@@ -221,22 +221,22 @@ const Index = () => {
   return (
     <div className="min-h-screen pb-20 sm:pb-24 bg-gradient-to-b from-background via-background/98 to-background">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 pt-6 sm:pt-8 pb-5 sm:pb-7">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 pt-2 pb-2">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col items-center justify-center gap-4 sm:gap-5 mb-3 sm:mb-4">
-            <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 w-full">
+          <div className="flex flex-col items-center justify-center gap-1">
+            <div className="flex flex-col items-center justify-center gap-1 w-full">
               <div className="flex items-center justify-center">
                 <img
                   src="/logo.png"
                   alt="Heart Link Logo"
-                  className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16"
+                  className="w-8 h-8 sm:w-10 sm:h-10"
                 />
               </div>
               <div className="text-center w-full">
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent leading-tight">
+                <h1 className="text-lg sm:text-xl font-extrabold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent leading-tight">
                   {user?.spaceName || "Heart Link"}
                 </h1>
-                <p className="text-sm sm:text-base md:text-lg text-muted-foreground font-medium mt-1 sm:mt-2">
+                <p className="text-xs text-muted-foreground font-medium mt-0.5">
                   Your shared space for staying connected ❤️
                 </p>
               </div>
@@ -245,7 +245,7 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 space-y-5 sm:space-y-6 md:space-y-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 pt-4 sm:pt-5 md:pt-6 space-y-5 sm:space-y-6 md:space-y-8">
         {/* Space Prompt Banner - Show if user doesn't have a space and not dismissed */}
         {user && !user.spaceCode && !user.spaceId && !bannerDismissed && (
           <Alert className="border-primary/50 bg-gradient-to-r from-primary/10 via-accent/10 to-secondary/10 backdrop-blur-sm relative">

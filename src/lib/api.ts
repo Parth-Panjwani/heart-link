@@ -346,6 +346,15 @@ export const usersApi = {
       method: "PUT",
       body: JSON.stringify(countries),
     }),
+  getSpaceInfo: (spaceCode: string) =>
+    apiRequest<{
+      space: {
+        code: string;
+        name?: string;
+        creatorName: string;
+        creatorId: string;
+      };
+    }>(`/spaces/${spaceCode}`),
 };
 
 // Quote APIs

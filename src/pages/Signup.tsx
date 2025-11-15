@@ -11,8 +11,19 @@ import {
   Phone,
   ArrowRight,
   X,
+  Sparkles,
+  Users,
+  Heart,
 } from "lucide-react";
 import { toast } from "sonner";
+import { usersApi } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const Signup = () => {
   const [name, setName] = useState("");
@@ -24,9 +35,44 @@ const Signup = () => {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPin, setLoginPin] = useState("");
   const [loginName, setLoginName] = useState("");
-  const { signup, login, user } = useAuth();
+  const { signup, login, user, joinSpace } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [spaceCode, setSpaceCode] = useState("");
+  const [spaceInfo, setSpaceInfo] = useState<{
+    creatorName: string;
+    spaceName?: string;
+  } | null>(null);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [loadingSpaceInfo, setLoadingSpaceInfo] = useState(false);
+
+  // Check for spaceCode in URL and fetch space info
+  useEffect(() => {
+    const urlSpaceCode = searchParams.get("spaceCode");
+    if (urlSpaceCode && !user) {
+      setSpaceCode(urlSpaceCode.toUpperCase());
+      setLoadingSpaceInfo(true);
+      usersApi
+        .getSpaceInfo(urlSpaceCode.toUpperCase())
+        .then((result) => {
+          if (result.success && result.data) {
+            setSpaceInfo({
+              creatorName: result.data.space.creatorName,
+              spaceName: result.data.space.name,
+            });
+            setShowWelcomeModal(true);
+          } else {
+            toast.error("Invalid space code");
+          }
+        })
+        .catch(() => {
+          toast.error("Failed to load space information");
+        })
+        .finally(() => {
+          setLoadingSpaceInfo(false);
+        });
+    }
+  }, [searchParams, user]);
 
   // Redirect to home if user is logged in (don't show modal on signup page)
   useEffect(() => {
@@ -71,7 +117,21 @@ const Signup = () => {
     }
 
     setLoading(true);
-    const success = await signup(name.trim(), email.trim(), phone.trim(), pin);
+    let success = false;
+
+    // If spaceCode is present, use joinSpace instead of signup
+    if (spaceCode && spaceCode.length === 6) {
+      success = await joinSpace(
+        name.trim(),
+        email.trim(),
+        phone.trim(),
+        pin,
+        spaceCode.toUpperCase()
+      );
+    } else {
+      success = await signup(name.trim(), email.trim(), phone.trim(), pin);
+    }
+
     setLoading(false);
 
     if (success) {
@@ -123,6 +183,13 @@ const Signup = () => {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "");
     setPhone(value);
+  };
+
+  const handleSpaceCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (value.length <= 6) {
+      setSpaceCode(value);
+    }
   };
 
 
@@ -344,6 +411,31 @@ const Signup = () => {
                   </div>
                 </div>
 
+                {/* Space Code Field - Show if spaceCode is in URL */}
+                {spaceCode && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-space-code" className="text-xs font-semibold">
+                      Space Code
+                    </Label>
+                    <div className="relative">
+                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-space-code"
+                        type="text"
+                        placeholder="ABCDEF"
+                        value={spaceCode}
+                        onChange={handleSpaceCodeChange}
+                        className="pl-10 text-center text-lg font-bold tracking-widest h-10 uppercase"
+                        maxLength={6}
+                        disabled
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      You're joining {spaceInfo?.creatorName}'s space
+                    </p>
+                  </div>
+                )}
+
                 <Button
                   type="submit"
                   className="w-full h-10 text-sm font-semibold mt-4"
@@ -353,14 +445,15 @@ const Signup = () => {
                     pin.length !== 4 ||
                     !name.trim() ||
                     !email.trim() ||
-                    !phone.trim()
+                    !phone.trim() ||
+                    (spaceCode && spaceCode.length !== 6)
                   }
                 >
                   {loading ? (
-                    "Creating Account..."
+                    spaceCode ? "Joining Space..." : "Creating Account..."
                   ) : (
                     <>
-                      Create Account
+                      {spaceCode ? "Join Space" : "Create Account"}
                       <ArrowRight className="w-3 h-3 ml-2" />
                     </>
                   )}
@@ -384,6 +477,51 @@ const Signup = () => {
           </div>
         )}
 
+        {/* Welcome Modal - Show when spaceCode is in URL */}
+        <Dialog open={showWelcomeModal} onOpenChange={setShowWelcomeModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Heart className="w-8 h-8 text-primary" fill="currentColor" />
+                </div>
+              </div>
+              <DialogTitle className="text-2xl font-bold text-center">
+                Welcome! 🎉
+              </DialogTitle>
+              <DialogDescription className="text-center mt-2">
+                {spaceInfo?.creatorName} invited you to join their space
+                {spaceInfo?.spaceName && (
+                  <span className="block mt-1 font-semibold text-foreground">
+                    "{spaceInfo.spaceName}"
+                  </span>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-4">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5">
+                <Users className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-sm mb-1">Join {spaceInfo?.creatorName}'s Space</p>
+                  <p className="text-sm text-muted-foreground">
+                    Create your account to join and start connecting with your loved ones!
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <Button
+                  onClick={() => setShowWelcomeModal(false)}
+                  className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 h-10"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Get Started
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
