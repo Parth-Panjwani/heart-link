@@ -1,8 +1,12 @@
 // Vercel serverless function - Express app wrapper
 // This imports the Express app from server.cjs
 
-const mongoose = require('mongoose');
-const admin = require('firebase-admin');
+import mongoose from 'mongoose';
+import admin from 'firebase-admin';
+import { createRequire } from 'module';
+
+// Create require function for importing CommonJS modules
+const require = createRequire(import.meta.url);
 
 // MongoDB connection handler
 let mongooseConnection = null;
@@ -64,14 +68,14 @@ try {
   console.warn('⚠️ Firebase Admin initialization failed:', error.message);
 }
 
-// Import the Express app from server.cjs
+// Import the Express app from server.cjs using require (CommonJS module)
 // server.cjs now exports the app instead of listening
 const app = require('../server.cjs');
 
 // Vercel serverless function handler
 // Vercel provides Node.js-compatible req/res, so we can use Express directly
 // But we need to ensure MongoDB is connected first
-module.exports = async (req, res) => {
+export default async (req, res) => {
   try {
     // Vercel rewrite: /api/users/signup -> /api/server
     // Vercel automatically preserves the original URL in req.url
